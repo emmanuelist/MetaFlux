@@ -199,3 +199,25 @@ contract BudgetManager is IBudgetManager, Ownable {
         
         return budget.amount - budget.spent;
     }
+
+    function getBudgetPeriodEnd(address user, string calldata category) external view override returns (uint256) {
+        Budget storage budget = _budgets[user][category];
+        
+        if (!budget.isActive) {
+            return 0;
+        }
+        
+        uint256 periodDuration = _getPeriodDuration(budget.period);
+        return budget.startTime + periodDuration;
+    }
+    
+    function isBudgetExceeded(address user, string calldata category) external view override returns (bool) {
+        Budget storage budget = _budgets[user][category];
+        
+        if (!budget.isActive) {
+            return false;
+        }
+        
+        return budget.spent >= budget.amount;
+    }
+}
