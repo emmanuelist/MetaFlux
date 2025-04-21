@@ -132,3 +132,81 @@ contract RewardsDistributor is IRewardsDistributor, AccessControl, ReentrancyGua
             4
         );
     }
+
+    function _createAchievementInternal(
+        string memory name,
+        string memory description,
+        uint256 tokenReward,
+        uint256 badgeId
+    ) private returns (uint256) {
+        uint256 achievementId = _achievementIdTracker++;
+        
+        _achievements[achievementId] = Achievement({
+            name: name,
+            description: description,
+            tokenReward: tokenReward,
+            badgeId: badgeId,
+            isActive: true
+        });
+        
+        emit AchievementCreated(achievementId, name, tokenReward, badgeId);
+        
+        return achievementId;
+    }
+    
+    function createAchievement(
+        string calldata name,
+        string calldata description,
+        uint256 tokenReward,
+        uint256 badgeId
+    ) external override onlyRole(ACHIEVEMENT_CREATOR_ROLE) {
+        require(bytes(name).length > 0, "RewardsDistributor: Name cannot be empty");
+        require(_badges.exists(badgeId), "RewardsDistributor: Badge does not exist");
+        
+        _createAchievementInternal(name, description, tokenReward, badgeId);
+    }
+    
+    function updateAchievement(
+        uint256 achievementId,
+        string calldata name,
+        string calldata description,
+        uint256 tokenReward,
+        uint256 badgeId
+    ) external override onlyRole(ACHIEVEMENT_CREATOR_ROLE) {
+        require(_achievements[achievementId].isActive, "RewardsDistributor: Achievement does not exist");
+        require(bytes(name).length > 0, "RewardsDistributor: Name cannot be empty");
+        require(_badges.exists(badgeId), "RewardsDistributor: Badge does not exist");
+        
+        Achievement storage achievement = _achievements[achievementId];
+        
+        achievement.name = name;
+        achievement.description = description;
+        achievement.tokenReward = tokenReward;
+        achievement.badgeId = badgeId;
+        
+        emit AchievementUpdated(achievementId, name, tokenReward, badgeId);
+    }
+    
+    function awardAchievement(
+        address user,
+        uint256 achievementId
+    ) external override onlyRole(REWARD_MANAGER_ROLE) {
+        require(user != address(0), "RewardsDistributor: Invalid user address");
+        require(_achievements[achievementId].isActive, "RewardsDistributor: Achievement does not exist");
+        require(!_hasEarnedAchievement[user][achievementId], "RewardsDistributor: Achievement already earned");
+        
+        Achievement storage achievement = _achievements[achievementId];
+        
+        _userAchievements[user][achievementId] = UserAchievement({
+            id: achievementId,
+            name: achievement.name,
+            description: achievement.description,
+            timestamp: block.timestamp,
+            claimed: false
+        });
+        
+        _userAchievementIds[user].push(achievementId);
+        _hasEarnedAchievement[user][achievementId] = true;
+        
+        emit AchievementEarned(user, achievementId, achievement.name);
+    }
