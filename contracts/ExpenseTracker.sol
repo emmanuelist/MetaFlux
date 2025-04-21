@@ -43,3 +43,69 @@ interface IExpenseTracker {
     function getCategoryList() external view returns (string[] memory);
     function isValidCategory(string calldata category) external view returns (bool);
 }
+
+contract ExpenseTracker is IExpenseTracker, Ownable, ReentrancyGuard {
+    uint256 private _expenseIdTracker;
+    mapping(uint256 => Expense) private _expenses;
+    mapping(address => uint256[]) private _userExpenses;
+    mapping(address => mapping(string => uint256[])) private _userExpensesByCategory;
+    
+    string[] private _categories;
+    mapping(string => bool) private _validCategories;
+    
+    constructor() Ownable(msg.sender) {
+        // Initialize with default categories
+        _addCategoryInternal("Food");
+        _addCategoryInternal("Transportation");
+        _addCategoryInternal("Accommodation");
+        _addCategoryInternal("Entertainment");
+        _addCategoryInternal("Utilities");
+        _addCategoryInternal("Other");
+    }
+    
+    function recordExpense(
+        uint256 amount,
+        string calldata category,
+        string calldata description,
+        bool isReimbursable
+    ) external override nonReentrant returns (uint256) {
+        require(amount > 0, "ExpenseTracker: Amount must be greater than 0");
+        require(isValidCategory(category), "ExpenseTracker: Invalid category");
+        
+        uint256 expenseId = _expenseIdTracker++;
+        
+        _expenses[expenseId] = Expense({
+            id: expenseId,
+            user: msg.sender,
+            amount: amount,
+            timestamp: block.timestamp,
+            category: category,
+            description: description,
+            isReimbursable: isReimbursable
+        });
+        
+        _userExpenses[msg.sender].push(expenseId);
+        _userExpensesByCategory[msg.sender][category].push(expenseId);
+        
+        emit ExpenseRecorded(expenseId, msg.sender, amount, category, block.timestamp);
+        
+        return expenseId;
+    }
+    
+    function getExpense(uint256 expenseId) external view override returns (Expense memory) {
+        require(_expenses[expenseId].user != address(0), "ExpenseTracker: Expense does not exist");
+        return _expenses[expenseId];
+    }
+    
+    function getUserExpenses(address user) external view override returns (uint256[] memory) {
+        return _userExpenses[user];
+    }
+    
+    function getUserExpensesByCategory(address user, string calldata category) external view override returns (uint256[] memory) {
+        require(isValidCategory(category), "ExpenseTracker: Invalid category");
+        return _userExpensesByCategory[user][category];
+    }
+    
+    function addCategory(string calldata category) external override onlyOwner {
+        _addCategoryInternal(category);
+    }
