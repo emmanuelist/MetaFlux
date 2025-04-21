@@ -109,3 +109,53 @@ contract ExpenseTracker is IExpenseTracker, Ownable, ReentrancyGuard {
     function addCategory(string calldata category) external override onlyOwner {
         _addCategoryInternal(category);
     }
+
+    function _addCategoryInternal(string memory category) private {
+        require(bytes(category).length > 0, "ExpenseTracker: Category cannot be empty");
+        require(!_validCategories[category], "ExpenseTracker: Category already exists");
+        
+        _categories.push(category);
+        _validCategories[category] = true;
+        
+        emit CategoryAdded(category);
+    }
+    
+    function removeCategory(string calldata category) external override onlyOwner {
+        require(_validCategories[category], "ExpenseTracker: Category does not exist");
+        require(!_isDefaultCategory(category), "ExpenseTracker: Cannot remove default category");
+        
+        _validCategories[category] = false;
+        
+        // Remove from categories array
+        for (uint256 i = 0; i < _categories.length; i++) {
+            if (keccak256(bytes(_categories[i])) == keccak256(bytes(category))) {
+                _categories[i] = _categories[_categories.length - 1];
+                _categories.pop();
+                break;
+            }
+        }
+        
+        emit CategoryRemoved(category);
+    }
+    
+    function _isDefaultCategory(string memory category) private pure returns (bool) {
+        bytes32 categoryHash = keccak256(bytes(category));
+        
+        return (
+            categoryHash == keccak256(bytes("Food")) ||
+            categoryHash == keccak256(bytes("Transportation")) ||
+            categoryHash == keccak256(bytes("Accommodation")) ||
+            categoryHash == keccak256(bytes("Entertainment")) ||
+            categoryHash == keccak256(bytes("Utilities")) ||
+            categoryHash == keccak256(bytes("Other"))
+        );
+    }
+    
+    function getCategoryList() external view override returns (string[] memory) {
+        return _categories;
+    }
+    
+    function isValidCategory(string calldata category) public view override returns (bool) {
+        return _validCategories[category];
+    }
+}
