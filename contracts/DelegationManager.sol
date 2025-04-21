@@ -120,3 +120,89 @@ contract DelegationManager is IDelegationManager, AccessControl, ReentrancyGuard
         
         emit DelegationUpdated(msg.sender, delegate, newSpendLimit, newExpiryTime);
     }
+
+    function revokeDelegation(address delegate) external override nonReentrant {
+        require(_delegationExists[msg.sender][delegate], "DelegationManager: Delegation does not exist");
+        
+        Delegation storage delegation = _delegations[msg.sender][delegate];
+        require(delegation.isActive, "DelegationManager: Delegation is already inactive");
+        
+        delegation.isActive = false;
+        
+        emit DelegationRevoked(msg.sender, delegate);
+    }
+    
+    function recordDelegatedSpend(
+        address admin,
+        uint256 amount
+    ) external override nonReentrant returns (bool) {
+        require(hasRole(EXPENSE_RECORDER_ROLE, msg.sender), "DelegationManager: Caller is not allowed to record expenses");
+        require(_delegationExists[admin][tx.origin], "DelegationManager: Delegation does not exist");
+        
+        Delegation storage delegation = _delegations[admin][tx.origin];
+        
+        require(delegation.isActive, "DelegationManager: Delegation is not active");
+        require(block.timestamp <= delegation.expiryTime, "DelegationManager: Delegation has expired");
+        require(delegation.spentAmount + amount <= delegation.spendLimit, "DelegationManager: Exceeds spend limit");
+        
+        delegation.spentAmount += amount;
+        
+        emit DelegatedSpendRecorded(admin, tx.origin, amount);
+        
+        return true;
+    }
+    
+    function getDelegation(
+        address admin,
+        address delegate
+    ) external view override returns (Delegation memory) {
+        require(_delegationExists[admin][delegate], "DelegationManager: Delegation does not exist");
+        return _delegations[admin][delegate];
+    }
+    
+    function isDelegationActive(
+        address admin,
+        address delegate
+    ) external view override returns (bool) {
+        if (!_delegationExists[admin][delegate]) {
+            return false;
+        }
+        
+        Delegation storage delegation = _delegations[admin][delegate];
+        return delegation.isActive && block.timestamp <= delegation.expiryTime;
+    }
+    
+    function getRemainingSpendLimit(
+        address admin,
+        address delegate
+    ) external view override returns (uint256) {
+        if (!_delegationExists[admin][delegate]) {
+            return 0;
+        }
+        
+        Delegation storage delegation = _delegations[admin][delegate];
+        
+        if (!delegation.isActive || block.timestamp > delegation.expiryTime) {
+            return 0;
+        }
+        
+        if (delegation.spentAmount >= delegation.spendLimit) {
+            return 0;
+        }
+        
+        return delegation.spendLimit - delegation.spentAmount;
+    }
+    
+    function getAdminDelegates(address admin) external view override returns (address[] memory) {
+        return _adminDelegates[admin];
+    }
+    
+    function getDelegateAdmins(address delegate) external view override returns (address[] memory) {
+        return _delegateAdmins[delegate];
+    }
+    
+    // Function to grant EXPENSE_RECORDER_ROLE to expense tracking contracts
+    function grantExpenseRecorderRole(address recorder) external onlyRole(ADMIN_ROLE) {
+        _grantRole(EXPENSE_RECORDER_ROLE, recorder);
+    }
+}
