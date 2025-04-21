@@ -76,3 +76,72 @@ contract NFTBadges is ERC721, ERC721URIStorage, AccessControl {
             3
         );
     }
+
+    function _createBadgeInternal(
+        string memory name,
+        string memory description,
+        string memory imageURI,
+        uint8 rarity
+    ) private returns (uint256) {
+        require(rarity >= 1 && rarity <= 5, "NFTBadges: Rarity must be between 1 and 5");
+        
+        uint256 badgeId = _badgeIdCounter++;
+        
+        _badgeMetadata[badgeId] = BadgeMetadata({
+            name: name,
+            description: description,
+            imageURI: imageURI,
+            rarity: rarity,
+            isActive: true
+        });
+        
+        return badgeId;
+    }
+    
+    function createBadge(
+        string calldata name,
+        string calldata description,
+        string calldata imageURI,
+        uint8 rarity
+    ) external onlyRole(METADATA_MANAGER_ROLE) returns (uint256) {
+        return _createBadgeInternal(name, description, imageURI, rarity);
+    }
+    
+    function updateBadge(
+        uint256 badgeId,
+        string calldata name,
+        string calldata description,
+        string calldata imageURI,
+        uint8 rarity
+    ) external onlyRole(METADATA_MANAGER_ROLE) {
+        require(_badgeMetadata[badgeId].isActive, "NFTBadges: Badge does not exist");
+        require(rarity >= 1 && rarity <= 5, "NFTBadges: Rarity must be between 1 and 5");
+        
+        BadgeMetadata storage metadata = _badgeMetadata[badgeId];
+        
+        metadata.name = name;
+        metadata.description = description;
+        metadata.imageURI = imageURI;
+        metadata.rarity = rarity;
+    }
+    
+    function mintBadge(address to, uint256 badgeId) external onlyRole(MINTER_ROLE) returns (uint256) {
+        require(_badgeMetadata[badgeId].isActive, "NFTBadges: Badge does not exist");
+        
+        uint256 tokenId = _tokenIdCounter++;
+        _safeMint(to, tokenId);
+        
+        // Use badge ID in the URI to maintain the same metadata for the same badge type
+        string memory uri = string(abi.encodePacked(
+            "ipfs://badge/",
+            _toString(badgeId),
+            ".json"
+        ));
+        
+        _setTokenURI(tokenId, uri);
+        
+        _hasBadge[to][badgeId] = true;
+        _badgeMintCount[badgeId]++;
+        
+        return tokenId;
+    }
