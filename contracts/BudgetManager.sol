@@ -138,3 +138,64 @@ contract BudgetManager is IBudgetManager, Ownable {
             }
         }
     }
+
+    function _isBudgetPeriodExpired(address user, string calldata category) private view returns (bool) {
+        Budget storage budget = _budgets[user][category];
+        uint256 periodDuration = _getPeriodDuration(budget.period);
+        
+        return (block.timestamp > budget.startTime + periodDuration);
+    }
+    
+    function _getPeriodDuration(Period period) private pure returns (uint256) {
+        if (period == Period.DAILY) {
+            return 1 days;
+        } else if (period == Period.WEEKLY) {
+            return 7 days;
+        } else if (period == Period.MONTHLY) {
+            return 30 days;
+        } else if (period == Period.QUARTERLY) {
+            return 90 days;
+        } else if (period == Period.YEARLY) {
+            return 365 days;
+        }
+        
+        revert("BudgetManager: Invalid period");
+    }
+    
+    function _resetBudgetInternal(address user, string memory category) private {
+        Budget storage budget = _budgets[user][category];
+        
+        budget.spent = 0;
+        budget.startTime = block.timestamp;
+        
+        // Reset threshold triggers
+        for (uint256 i = 0; i < _thresholds.length; i++) {
+            _thresholdTriggered[user][category][_thresholds[i]] = false;
+        }
+    }
+    
+    function resetBudget(string calldata category) external override {
+        require(_budgets[msg.sender][category].isActive, "BudgetManager: Budget does not exist");
+        
+        _resetBudgetInternal(msg.sender, category);
+        
+        emit BudgetReset(msg.sender, category);
+    }
+    
+    function getBudget(address user, string calldata category) external view override returns (Budget memory) {
+        return _budgets[user][category];
+    }
+    
+    function getRemainingBudget(address user, string calldata category) external view override returns (uint256) {
+        Budget storage budget = _budgets[user][category];
+        
+        if (!budget.isActive) {
+            return 0;
+        }
+        
+        if (budget.spent >= budget.amount) {
+            return 0;
+        }
+        
+        return budget.amount - budget.spent;
+    }
