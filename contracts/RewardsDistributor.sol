@@ -61,3 +61,74 @@ interface IRewardsDistributor {
     function getNextAchievementMilestones(address user) external view returns (Achievement[] memory);
 }
 
+contract RewardsDistributor is IRewardsDistributor, AccessControl, ReentrancyGuard {
+    bytes32 public constant REWARD_MANAGER_ROLE = keccak256("REWARD_MANAGER_ROLE");
+    bytes32 public constant ACHIEVEMENT_CREATOR_ROLE = keccak256("ACHIEVEMENT_CREATOR_ROLE");
+    
+    MetaFluxToken private _token;
+    NFTBadges private _badges;
+    
+    // Achievement ID counter
+    uint256 private _achievementIdTracker;
+    
+    // All achievements
+    mapping(uint256 => Achievement) private _achievements;
+    
+    // User => UserAchievement ID => UserAchievement
+    mapping(address => mapping(uint256 => UserAchievement)) private _userAchievements;
+    
+    // User => list of achievement IDs
+    mapping(address => uint256[]) private _userAchievementIds;
+    
+    // User => Achievement ID => bool (has user earned this achievement)
+    mapping(address => mapping(uint256 => bool)) private _hasEarnedAchievement;
+    
+    constructor(address tokenAddress, address badgesAddress) {
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(REWARD_MANAGER_ROLE, msg.sender);
+        _grantRole(ACHIEVEMENT_CREATOR_ROLE, msg.sender);
+        
+        _token = MetaFluxToken(tokenAddress);
+        _badges = NFTBadges(badgesAddress);
+        
+        // Initialize with default achievements
+        _initializeDefaultAchievements();
+    }
+    
+    function _initializeDefaultAchievements() private {
+        // Basic achievements (IDs start from 0)
+        _createAchievementInternal(
+            "First Steps",
+            "Record your first expense",
+            50,
+            0
+        );
+        
+        _createAchievementInternal(
+            "Budget Master",
+            "Create your first budget",
+            100,
+            1
+        );
+        
+        _createAchievementInternal(
+            "Delegation Pro",
+            "Create your first delegation",
+            150,
+            2
+        );
+        
+        _createAchievementInternal(
+            "Expense Guru",
+            "Record 50 expenses",
+            200,
+            3
+        );
+        
+        _createAchievementInternal(
+            "Category Expert",
+            "Use all expense categories",
+            250,
+            4
+        );
+    }
