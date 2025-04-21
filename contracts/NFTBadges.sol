@@ -145,3 +145,60 @@ contract NFTBadges is ERC721, ERC721URIStorage, AccessControl {
         
         return tokenId;
     }
+
+    function _toString(uint256 value) internal pure returns (string memory) {
+        // Convert uint to string
+        if (value == 0) {
+            return "0";
+        }
+        
+        uint256 temp = value;
+        uint256 digits;
+        
+        while (temp != 0) {
+            digits++;
+            temp /= 10;
+        }
+        
+        bytes memory buffer = new bytes(digits);
+        
+        while (value != 0) {
+            digits -= 1;
+            buffer[digits] = bytes1(uint8(48 + uint256(value % 10)));
+            value /= 10;
+        }
+        
+        return string(buffer);
+    }
+    
+    function hasBadge(address user, uint256 badgeId) external view returns (bool) {
+        return _hasBadge[user][badgeId];
+    }
+    
+    function getBadgeMetadata(uint256 badgeId) external view returns (BadgeMetadata memory) {
+        require(_badgeMetadata[badgeId].isActive, "NFTBadges: Badge does not exist");
+        return _badgeMetadata[badgeId];
+    }
+    
+    function getBadgeMintCount(uint256 badgeId) external view returns (uint256) {
+        require(_badgeMetadata[badgeId].isActive, "NFTBadges: Badge does not exist");
+        return _badgeMintCount[badgeId];
+    }
+    
+    function exists(uint256 badgeId) external view returns (bool) {
+        return _badgeMetadata[badgeId].isActive;
+    }
+    
+    // The following functions are overrides required by Solidity
+    function _burn(uint256 tokenId) internal override(ERC721, ERC721URIStorage) {
+        super._burn(tokenId);
+    }
+    
+    function tokenURI(uint256 tokenId) public view override(ERC721, ERC721URIStorage) returns (string memory) {
+        return super.tokenURI(tokenId);
+    }
+    
+    function supportsInterface(bytes4 interfaceId) public view override(ERC721, AccessControl) returns (bool) {
+        return super.supportsInterface(interfaceId);
+    }
+}
