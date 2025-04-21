@@ -210,3 +210,70 @@ contract RewardsDistributor is IRewardsDistributor, AccessControl, ReentrancyGua
         
         emit AchievementEarned(user, achievementId, achievement.name);
     }
+
+    function claimRewards(uint256 achievementId) external override nonReentrant {
+        require(_hasEarnedAchievement[msg.sender][achievementId], "RewardsDistributor: Achievement not earned");
+        
+        UserAchievement storage userAchievement = _userAchievements[msg.sender][achievementId];
+        Achievement storage achievement = _achievements[achievementId];
+        
+        require(!userAchievement.claimed, "RewardsDistributor: Rewards already claimed");
+        
+        userAchievement.claimed = true;
+        
+        // Mint tokens
+        _token.mint(msg.sender, achievement.tokenReward);
+        
+        // Mint NFT badge
+        _badges.mintBadge(msg.sender, achievement.badgeId);
+        
+        emit RewardClaimed(
+            msg.sender,
+            achievementId,
+            achievement.tokenReward,
+            achievement.badgeId
+        );
+    }
+    
+    function getUserAchievements(address user) external view override returns (UserAchievement[] memory) {
+        uint256[] storage achievementIds = _userAchievementIds[user];
+        UserAchievement[] memory userAchievements = new UserAchievement[](achievementIds.length);
+        
+        for (uint256 i = 0; i < achievementIds.length; i++) {
+            userAchievements[i] = _userAchievements[user][achievementIds[i]];
+        }
+        
+        return userAchievements;
+    }
+
+    function getAchievement(uint256 achievementId) external view override returns (Achievement memory) {
+        require(_achievements[achievementId].isActive, "RewardsDistributor: Achievement does not exist");
+        return _achievements[achievementId];
+    }
+    
+    function getNextAchievementMilestones(address user) external view override returns (Achievement[] memory) {
+        // This is a simplified implementation that returns up to 5 achievements the user hasn't earned yet
+        uint256 count = 0;
+        uint256 maxResults = 5;
+        
+        // First, count how many unearned achievements we have (up to maxResults)
+        for (uint256 i = 0; i < _achievementIdTracker && count < maxResults; i++) {
+            if (_achievements[i].isActive && !_hasEarnedAchievement[user][i]) {
+                count++;
+            }
+        }
+        
+        Achievement[] memory nextAchievements = new Achievement[](count);
+        
+        // Now fill the array
+        uint256 index = 0;
+        for (uint256 i = 0; i < _achievementIdTracker && index < count; i++) {
+            if (_achievements[i].isActive && !_hasEarnedAchievement[user][i]) {
+                nextAchievements[index] = _achievements[i];
+                index++;
+            }
+        }
+        
+        return nextAchievements;
+    }
+}
