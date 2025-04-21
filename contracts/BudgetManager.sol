@@ -53,3 +53,88 @@ interface IBudgetManager {
     function getBudgetPeriodEnd(address user, string calldata category) external view returns (uint256);
     function isBudgetExceeded(address user, string calldata category) external view returns (bool);
 }
+
+contract BudgetManager is IBudgetManager, Ownable {
+    IExpenseTracker private _expenseTracker;
+    
+    // user address => category => Budget
+    mapping(address => mapping(string => Budget)) private _budgets;
+    
+    // Thresholds for notifications (75%, 90%, 100%)
+    uint8[] private _thresholds = [75, 90, 100];
+    
+    // Track which thresholds have been triggered
+    mapping(address => mapping(string => mapping(uint8 => bool))) private _thresholdTriggered;
+    
+    constructor(address expenseTrackerAddress) Ownable(msg.sender) {
+        _expenseTracker = IExpenseTracker(expenseTrackerAddress);
+    }
+    
+    function createBudget(
+        string calldata category,
+        uint256 amount,
+        Period period
+    ) external override {
+        require(_expenseTracker.isValidCategory(category), "BudgetManager: Invalid category");
+        require(amount > 0, "BudgetManager: Budget amount must be greater than 0");
+        require(!_budgets[msg.sender][category].isActive, "BudgetManager: Budget already exists");
+        
+        _budgets[msg.sender][category] = Budget({
+            amount: amount,
+            spent: 0,
+            startTime: block.timestamp,
+            period: period,
+            category: category,
+            isActive: true
+        });
+        
+        emit BudgetCreated(msg.sender, category, amount, period);
+    }
+    
+    function updateBudget(string calldata category, uint256 newAmount) external override {
+        require(_expenseTracker.isValidCategory(category), "BudgetManager: Invalid category");
+        require(newAmount > 0, "BudgetManager: Budget amount must be greater than 0");
+        require(_budgets[msg.sender][category].isActive, "BudgetManager: Budget does not exist");
+        
+        Budget storage budget = _budgets[msg.sender][category];
+        budget.amount = newAmount;
+        
+        // Reset threshold triggers when budget is updated
+        for (uint256 i = 0; i < _thresholds.length; i++) {
+            _thresholdTriggered[msg.sender][category][_thresholds[i]] = false;
+        }
+        
+        emit BudgetUpdated(msg.sender, category, newAmount);
+    }
+    
+    function trackExpense(
+        address user,
+        uint256 amount,
+        string calldata category
+    ) external override {
+        Budget storage budget = _budgets[user][category];
+        
+        if (!budget.isActive) {
+            return; // No budget set for this category
+        }
+        
+        // Check if budget period has expired and reset if needed
+        if (_isBudgetPeriodExpired(user, category)) {
+            _resetBudgetInternal(user, category);
+        }
+        
+        // Update spent amount
+        budget.spent += amount;
+        
+        // Check thresholds and emit events
+        uint256 percentage = (budget.spent * 100) / budget.amount;
+        
+        for (uint256 i = 0; i < _thresholds.length; i++) {
+            uint8 threshold = _thresholds[i];
+            
+            if (percentage >= threshold && !_thresholdTriggered[user][category][threshold]) {
+                _thresholdTriggered[user][category][threshold] = true;
+                emit BudgetThresholdExceeded(user, category, threshold, percentage);
+            }
+        }
+    }
