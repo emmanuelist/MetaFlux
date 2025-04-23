@@ -45,7 +45,7 @@ interface IDelegationManager {
     function createDelegation(address delegate, uint256 spendLimit, uint256 expiryDuration) external;
     function updateDelegation(address delegate, uint256 newSpendLimit, uint256 newExpiryDuration) external;
     function revokeDelegation(address delegate) external;
-    function recordDelegatedSpend(address admin, uint256 amount) external returns (bool);
+    function recordDelegatedSpend(address admin, address delegate, uint256 amount) external returns (bool);
     function getDelegation(address admin, address delegate) external view returns (Delegation memory);
     function isDelegationActive(address admin, address delegate) external view returns (bool);
     function getRemainingSpendLimit(address admin, address delegate) external view returns (uint256);
@@ -134,12 +134,13 @@ contract DelegationManager is IDelegationManager, AccessControl, ReentrancyGuard
     
     function recordDelegatedSpend(
         address admin,
+        address delegate,
         uint256 amount
     ) external override nonReentrant returns (bool) {
         require(hasRole(EXPENSE_RECORDER_ROLE, msg.sender), "DelegationManager: Caller is not allowed to record expenses");
-        require(_delegationExists[admin][tx.origin], "DelegationManager: Delegation does not exist");
+        require(_delegationExists[admin][delegate], "DelegationManager: Delegation does not exist");
         
-        Delegation storage delegation = _delegations[admin][tx.origin];
+        Delegation storage delegation = _delegations[admin][delegate];
         
         require(delegation.isActive, "DelegationManager: Delegation is not active");
         require(block.timestamp <= delegation.expiryTime, "DelegationManager: Delegation has expired");
@@ -147,7 +148,7 @@ contract DelegationManager is IDelegationManager, AccessControl, ReentrancyGuard
         
         delegation.spentAmount += amount;
         
-        emit DelegatedSpendRecorded(admin, tx.origin, amount);
+        emit DelegatedSpendRecorded(admin, delegate, amount);
         
         return true;
     }
