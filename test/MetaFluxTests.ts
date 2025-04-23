@@ -356,3 +356,157 @@ describe("MetaFlux Contracts", function () {
         const mintCount = await nftBadges.getBadgeMintCount(0);
         expect(mintCount).to.equal(1);
       });
+
+      it("should allow creating new badges with proper role", async function () {
+        await nftBadges.connect(owner).createBadge(
+          "Super Saver",
+          "Saved over 1000 PHAR",
+          "ipfs://badge/super_saver.json",
+          4 // Rarity
+        );
+        
+        const newBadgeId = 5; // (0-4 are default, so new one is 5)
+        const exists = await nftBadges.exists(newBadgeId);
+        expect(exists).to.equal(true);
+        
+        const badge = await nftBadges.getBadgeMetadata(newBadgeId);
+        expect(badge.name).to.equal("Super Saver");
+        expect(badge.rarity).to.equal(4);
+      });
+    });
+    
+    describe("RewardsDistributor", function () {
+      it("should initialize with default achievements", async function () {
+        // Check first achievement
+        const firstAchievement = await rewardsDistributor.getAchievement(0);
+        expect(firstAchievement.name).to.equal("First Steps");
+        expect(firstAchievement.tokenReward).to.equal(50);
+        expect(firstAchievement.isActive).to.equal(true);
+      });
+      
+      it("should award achievements to users", async function () {
+        // Award achievement to user1
+        await rewardsDistributor.connect(owner).awardAchievement(user1.address, 0);
+        
+        // Check user achievements
+        const userAchievements = await rewardsDistributor.getUserAchievements(user1.address);
+        expect(userAchievements.length).to.equal(1);
+        expect(userAchievements[0].id).to.equal(0);
+        expect(userAchievements[0].name).to.equal("First Steps");
+        expect(userAchievements[0].claimed).to.equal(false);
+      });
+      
+      it("should allow users to claim rewards", async function () {
+        // Award achievement
+        await rewardsDistributor.connect(owner).awardAchievement(user1.address, 0);
+        
+        // Claim rewards
+        await rewardsDistributor.connect(user1).claimRewards(0);
+        
+        // Check token balance
+        const tokenBalance = await metaFluxToken.balanceOf(user1.address);
+        expect(tokenBalance).to.equal(50); // 50 tokens for first achievement
+        
+        // Check badge ownership
+        const hasBadge = await nftBadges.hasBadge(user1.address, 0);
+        expect(hasBadge).to.equal(true);
+        
+        // Check achievement is marked as claimed
+        const userAchievements = await rewardsDistributor.getUserAchievements(user1.address);
+        expect(userAchievements[0].claimed).to.equal(true);
+      });
+      
+      it("should track next achievement milestones", async function () {
+        // Award one achievement
+        await rewardsDistributor.connect(owner).awardAchievement(user1.address, 0);
+        
+        // Get next milestones
+        const nextMilestones = await rewardsDistributor.getNextAchievementMilestones(user1.address);
+        
+        // Should have the remaining milestones (out of 5 total)
+        expect(nextMilestones.length).to.equal(4);
+        
+        // First milestone should not be included (already awarded)
+        const containsFirstAchievement = nextMilestones.some(m => m.name === "First Steps");
+        expect(containsFirstAchievement).to.equal(false);
+      });
+    });
+    
+    describe("Integration Tests", function () {
+      it("should handle complete expense recording flow with budgets", async function () {
+        // 1. Create a budget
+        await budgetManager.connect(user1).createBudget(
+          "Food", 
+          ethers.parseEther("100"), 
+          0 // DAILY
+        );
+        
+        // 2. Record an expense
+        const expenseAmount = ethers.parseEther("30");
+        await expenseTracker.connect(user1).recordExpense(
+          expenseAmount,
+          "Food",
+          "Lunch",
+          false
+        );
+        
+        // 3. Manually track the expense in BudgetManager (in a real implementation this would be triggered by an event)
+        const userExpenses = await expenseTracker.getUserExpenses(user1.address);
+        const expense = await expenseTracker.getExpense(userExpenses[0]);
+        
+        await budgetManager.trackExpense(
+          user1.address,
+          expense.amount,
+          expense.category
+        );
+        
+        // 4. Check updated budget
+        const updatedBudget = await budgetManager.getBudget(user1.address, "Food");
+        expect(updatedBudget.spent).to.equal(expenseAmount);
+        
+        // 5. Award achievement for first expense
+        await rewardsDistributor.connect(owner).awardAchievement(user1.address, 0); // First Steps
+        
+        // 6. Claim rewards
+        await rewardsDistributor.connect(user1).claimRewards(0);
+        
+        // 7. Check token balance and badge
+        const tokenBalance = await metaFluxToken.balanceOf(user1.address);
+        expect(tokenBalance).to.equal(50); // 50 tokens for first achievement
+        
+        const hasBadge = await nftBadges.hasBadge(user1.address, 0);
+        expect(hasBadge).to.equal(true);
+      });
+      
+      it("should handle delegation and expense tracking flow", async function () {
+        // 1. Create a delegation from user1 to user2
+        await delegationManager.connect(user1).createDelegation(
+          user2.address,
+          ethers.parseEther("100"),
+          7 * 24 * 60 * 60 // 7 days
+        );
+        
+        // 2. Setup roles to allow expense tracking
+        await delegationManager.grantExpenseRecorderRole(owner.address);
+        
+        // 3. Record a delegated expense (would normally happen via ExpenseTracker)
+        // For simplicity, we're calling directly
+        const expenseAmount = ethers.parseEther("30");
+        
+        // Simulate tx.origin being user2 (delegate)
+        // In a real scenario, this would be triggered by user2 making a transaction
+        await delegationManager.recordDelegatedSpend(
+          user1.address, // admin
+          expenseAmount
+        );
+        
+        // 4. Check updated delegation
+        const delegation = await delegationManager.getDelegation(user1.address, user2.address);
+        expect(delegation.spentAmount).to.equal(expenseAmount);
+        
+        // 5. Check remaining spend limit
+        const remainingLimit = await delegationManager.getRemainingSpendLimit(user1.address, user2.address);
+        expect(remainingLimit).to.equal(ethers.parseEther("70")); // 100 - 30
+      });
+    });
+  });
