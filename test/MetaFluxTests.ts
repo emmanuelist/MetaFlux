@@ -497,6 +497,7 @@ describe("MetaFlux Contracts", function () {
         // In a real scenario, this would be triggered by user2 making a transaction
         await delegationManager.recordDelegatedSpend(
           user1.address, // admin
+          user2.address, // delegate
           expenseAmount
         );
         
