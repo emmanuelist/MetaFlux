@@ -1,6 +1,6 @@
 # MetaFlux Finance
 
-MetaFlux Finance is a comprehensive blockchain-based expense management and financial tracking system built on the Pharos blockchain. It provides robust tools for expense tracking, budget management, delegation controls, and rewards.
+MetaFlux is a comprehensive blockchain-based expense management and financial tracking system built on the Pharos blockchain. It provides robust tools for expense tracking, budget management, delegation controls, and rewards.
 
 ## Overview
 
@@ -12,6 +12,55 @@ MetaFlux creates a complete financial management ecosystem with several integrat
 - **RewardsDistributor**: Rewards users for financial achievements
 - **MetaFluxToken (MFT)**: ERC-20 token for rewards and potential governance
 - **NFTBadges**: ERC-721 tokens representing achievements
+
+## Architecture
+
+MetaFlux follows a modular design with separate contracts for distinct functionality that interact through well-defined interfaces:
+
+```mermaid
+graph TD
+    subgraph "User Layer"
+        User[User Interface]
+        ExpenseTracker[ExpenseTracker.sol]
+        BudgetManager[BudgetManager.sol]
+    end
+    
+    subgraph "Delegation Layer"
+        DelegationManager[DelegationManager.sol]
+    end
+    
+    subgraph "Incentive Layer"
+        RewardsDistributor[RewardsDistributor.sol]
+        MetaFluxToken[MetaFluxToken.sol]
+        NFTBadges[NFTBadges.sol]
+    end
+    
+    User -->|Records expenses| ExpenseTracker
+    User -->|Creates budgets| BudgetManager
+    User -->|Delegates spending| DelegationManager
+    
+    ExpenseTracker -->|Expense data| BudgetManager
+    ExpenseTracker -->|Spending activity| RewardsDistributor
+    DelegationManager -->|Delegated transactions| ExpenseTracker
+    
+    BudgetManager -->|Budget adherence| RewardsDistributor
+    RewardsDistributor -->|Distributes tokens| MetaFluxToken
+    RewardsDistributor -->|Issues badges| NFTBadges
+    
+    classDef contract fill:#f9f9f9,stroke:#333,stroke-width:1px;
+    classDef layer fill:#e1f5fe,stroke:#01579b,stroke-width:2px;
+    
+    class ExpenseTracker,BudgetManager,DelegationManager,RewardsDistributor,MetaFluxToken,NFTBadges contract;
+    class User,Delegation,Incentive layer;
+```
+
+The architecture consists of three primary layers:
+
+1. **User Layer**: Direct interaction with ExpenseTracker and BudgetManager for core expense recording and budget management
+2. **Delegation Layer**: Controlled spending permissions via DelegationManager, enabling delegation relationships between users
+3. **Incentive Layer**: Rewards and achievements via RewardsDistributor, MetaFluxToken, and NFTBadges to encourage positive financial behaviors
+
+Data flows from user interactions through the system layers, with financial activities triggering appropriate rewards and achievements based on predefined criteria.
 
 ## Smart Contracts
 
@@ -111,13 +160,13 @@ git clone https://github.com/yourusername/metaflux.git
 cd metaflux
 ```
 
-1. Install dependencies:
+2. Install dependencies:
 
 ```bash
 npm install
 ```
 
-1. Set up environment variables:
+3. Set up environment variables:
 
 ```bash
 npx hardhat vars set ACCOUNT_PRIVATE_KEY
@@ -217,14 +266,6 @@ The test suite includes helper utilities for common test operations:
 
 - `setupContracts.ts`: Provides functions to deploy and configure all contracts
 - `eventEmitter.ts`: Utilities for monitoring and validating contract events
-
-## Architecture
-
-MetaFlux follows a modular design with separate contracts for distinct functionality that interact through well-defined interfaces:
-
-1. **User Layer**: Direct interaction with ExpenseTracker and BudgetManager
-2. **Delegation Layer**: Controlled spending permissions via DelegationManager
-3. **Incentive Layer**: Rewards and achievements via RewardsDistributor, MetaFluxToken, and NFTBadges
 
 ## Security Features
 
