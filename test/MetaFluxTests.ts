@@ -106,3 +106,104 @@ describe("MetaFlux Contracts", function () {
       expect(expense.description).to.equal(description);
       expect(expense.isReimbursable).to.equal(isReimbursable);
     });
+
+    it("should filter expenses by category", async function () {
+        // Record food expense
+        await expenseTracker.connect(user1).recordExpense(
+          ethers.parseEther("1.5"), 
+          "Food", 
+          "Lunch", 
+          false
+        );
+        
+        // Record transportation expense
+        await expenseTracker.connect(user1).recordExpense(
+          ethers.parseEther("0.5"), 
+          "Transportation", 
+          "Bus ticket", 
+          false
+        );
+        
+        const foodExpenses = await expenseTracker.getUserExpensesByCategory(user1.address, "Food");
+        const transportExpenses = await expenseTracker.getUserExpensesByCategory(user1.address, "Transportation");
+        
+        expect(foodExpenses.length).to.equal(1);
+        expect(transportExpenses.length).to.equal(1);
+        
+        const foodExpense = await expenseTracker.getExpense(foodExpenses[0]);
+        expect(foodExpense.category).to.equal("Food");
+      });
+    });
+    
+    describe("BudgetManager", function () {
+      it("should create and track budgets", async function () {
+        // Create a budget
+        await budgetManager.connect(user1).createBudget(
+          "Food", 
+          ethers.parseEther("100"), 
+          0 // DAILY
+        );
+        
+        const budget = await budgetManager.getBudget(user1.address, "Food");
+        expect(budget.amount).to.equal(ethers.parseEther("100"));
+        expect(budget.spent).to.equal(0);
+        expect(budget.period).to.equal(0); // DAILY
+        expect(budget.isActive).to.equal(true);
+        
+        // Record expense
+        const expenseAmount = ethers.parseEther("30");
+        await expenseTracker.connect(user1).recordExpense(
+          expenseAmount,
+          "Food",
+          "Dinner",
+          false
+        );
+        
+        // Simulate tracking the expense in BudgetManager
+        const userExpenses = await expenseTracker.getUserExpenses(user1.address);
+        const expense = await expenseTracker.getExpense(userExpenses[0]);
+        
+        await budgetManager.trackExpense(
+          user1.address,
+          expense.amount,
+          expense.category
+        );
+        
+        // Check updated budget
+        const updatedBudget = await budgetManager.getBudget(user1.address, "Food");
+        expect(updatedBudget.spent).to.equal(expenseAmount);
+        
+        // Check remaining budget
+        const remainingBudget = await budgetManager.getRemainingBudget(user1.address, "Food");
+        expect(remainingBudget).to.equal(ethers.parseEther("70")); // 100 - 30
+      });
+      
+      it("should handle budget period expiration", async function () {
+        // Create a daily budget
+        await budgetManager.connect(user1).createBudget(
+          "Food", 
+          ethers.parseEther("100"), 
+          0 // DAILY
+        );
+        
+        // Record expense
+        await budgetManager.trackExpense(
+          user1.address,
+          ethers.parseEther("30"),
+          "Food"
+        );
+        
+        // Move time forward by 25 hours (more than a day)
+        await time.increase(25 * 60 * 60);
+        
+        // Record another expense
+        await budgetManager.trackExpense(
+          user1.address,
+          ethers.parseEther("20"),
+          "Food"
+        );
+        
+        // Should have reset the budget after period expired
+        const updatedBudget = await budgetManager.getBudget(user1.address, "Food");
+        expect(updatedBudget.spent).to.equal(ethers.parseEther("20")); // Only the new expense
+      });
