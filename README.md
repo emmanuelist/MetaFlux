@@ -18,6 +18,7 @@ MetaFlux creates a complete financial management ecosystem with several integrat
 ### ExpenseTracker.sol
 
 Records and categorizes expenses with key features:
+
 - Track expenses by category with descriptions and reimbursement status
 - Predefined and customizable expense categories
 - Query user expenses by category or in aggregate
@@ -34,6 +35,7 @@ function recordExpense(
 ### BudgetManager.sol
 
 Sets and enforces spending budgets:
+
 - Create budgets for different expense categories
 - Define budget periods (daily, weekly, monthly, quarterly, yearly)
 - Monitor spending and get notifications when approaching budget thresholds
@@ -50,6 +52,7 @@ function createBudget(
 ### DelegationManager.sol
 
 Handles spending delegation between users:
+
 - Delegate spending permissions with customizable limits
 - Set expiration times for delegations
 - Track and manage delegated spending
@@ -66,6 +69,7 @@ function createDelegation(
 ### RewardsDistributor.sol
 
 Manages achievement-based rewards:
+
 - Track user achievements
 - Distribute token rewards
 - Award NFT badges for milestones
@@ -101,17 +105,20 @@ ERC-721 tokens representing achievements and milestones:
 ### Installation
 
 1. Clone the repository:
+
 ```bash
 git clone https://github.com/yourusername/metaflux.git
 cd metaflux
 ```
 
-2. Install dependencies:
+1. Install dependencies:
+
 ```bash
 npm install
 ```
 
-3. Set up environment variables:
+1. Set up environment variables:
+
 ```bash
 npx hardhat vars set ACCOUNT_PRIVATE_KEY
 # Enter your wallet's private key when prompted
@@ -128,19 +135,88 @@ npx hardhat compile
 ### Testing
 
 Run the test suite:
+
 ```bash
 npx hardhat test
 ```
 
 Run tests with gas reporting:
+
 ```bash
 REPORT_GAS=true npx hardhat test
 ```
 
 Check test coverage:
+
 ```bash
 npx hardhat coverage
 ```
+
+## Test Framework
+
+MetaFlux uses a comprehensive testing framework to ensure all components work correctly individually and together. The tests cover:
+
+### Contract-Specific Tests
+
+Each contract has dedicated tests to verify core functionality:
+
+1. **ExpenseTracker**
+   - Initialization with default categories
+   - Category management (adding new categories)
+   - Expense recording and retrieval
+   - Category-based expense filtering
+
+2. **BudgetManager**
+   - Budget creation and tracking
+   - Expense monitoring against budgets
+   - Period-based budget reset functionality
+   - Budget threshold notifications (75%, 90%, 100%)
+
+3. **DelegationManager**
+   - Delegation creation and tracking
+   - Delegation updates and revocation
+   - Relationship tracking between admins and delegates
+   - Delegated spending limits enforcement
+
+4. **MetaFluxToken**
+   - Initialization with correct parameters
+   - Role-based minting controls
+   - Balance tracking
+
+5. **NFTBadges**
+   - Default badge initialization
+   - Badge minting and ownership verification
+   - Creation of new badge types
+   - Badge rarity system
+
+6. **RewardsDistributor**
+   - Achievement initialization
+   - Awarding achievements to users
+   - Reward claiming functionality
+   - Achievement milestone tracking
+
+### Integration Tests
+
+Comprehensive tests that verify interactions between multiple contracts:
+
+1. **Complete Expense Flow**
+   - Budget creation and expense recording
+   - Budget tracking and updating
+   - Achievement awarding based on financial activity
+   - Reward claiming and token/badge distribution
+
+2. **Delegation Flow**
+   - Delegation relationship establishment
+   - Delegated expense recording
+   - Spend limit tracking and enforcement
+   - Integration with the expense tracking system
+
+### Test Helpers
+
+The test suite includes helper utilities for common test operations:
+
+- `setupContracts.ts`: Provides functions to deploy and configure all contracts
+- `eventEmitter.ts`: Utilities for monitoring and validating contract events
 
 ## Architecture
 
@@ -156,3 +232,4 @@ MetaFlux follows a modular design with separate contracts for distinct functiona
 - Access control with role-based permissions
 - Reentrancy protection for financial operations
 - Comprehensive validation checks
+- Extensive test coverage of all functionality
