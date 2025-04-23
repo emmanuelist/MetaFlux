@@ -207,3 +207,152 @@ describe("MetaFlux Contracts", function () {
         const updatedBudget = await budgetManager.getBudget(user1.address, "Food");
         expect(updatedBudget.spent).to.equal(ethers.parseEther("20")); // Only the new expense
       });
+
+      it("should emit threshold exceeded events", async function () {
+        // Create a budget
+        await budgetManager.connect(user1).createBudget(
+          "Food", 
+          ethers.parseEther("100"), 
+          0 // DAILY
+        );
+        
+        // 75% of budget
+        await expect(
+          budgetManager.trackExpense(user1.address, ethers.parseEther("75"), "Food")
+        ).to.emit(budgetManager, "BudgetThresholdExceeded")
+          .withArgs(user1.address, "Food", 75, 75);
+        
+        // Additional 15% (now at 90%)
+        await expect(
+          budgetManager.trackExpense(user1.address, ethers.parseEther("15"), "Food")
+        ).to.emit(budgetManager, "BudgetThresholdExceeded")
+          .withArgs(user1.address, "Food", 90, 90);
+        
+        // Additional 15% (now at 105%)
+        await expect(
+          budgetManager.trackExpense(user1.address, ethers.parseEther("15"), "Food")
+        ).to.emit(budgetManager, "BudgetThresholdExceeded")
+          .withArgs(user1.address, "Food", 100, 105);
+      });
+    });
+    
+    describe("DelegationManager", function () {
+      it("should create and track delegations", async function () {
+        // Create a delegation (admin: user1, delegate: user2)
+        const spendLimit = ethers.parseEther("100");
+        const expiryDuration = 7 * 24 * 60 * 60; // 7 days in seconds
+        
+        await delegationManager.connect(user1).createDelegation(
+          user2.address,
+          spendLimit,
+          expiryDuration
+        );
+        
+        // Check delegation details
+        const delegation = await delegationManager.getDelegation(user1.address, user2.address);
+        expect(delegation.admin).to.equal(user1.address);
+        expect(delegation.delegate).to.equal(user2.address);
+        expect(delegation.spendLimit).to.equal(spendLimit);
+        expect(delegation.spentAmount).to.equal(0);
+        expect(delegation.isActive).to.equal(true);
+        
+        // Check delegation relationships
+        const user1Delegates = await delegationManager.getAdminDelegates(user1.address);
+        const user2Admins = await delegationManager.getDelegateAdmins(user2.address);
+        
+        expect(user1Delegates.length).to.equal(1);
+        expect(user1Delegates[0]).to.equal(user2.address);
+        expect(user2Admins.length).to.equal(1);
+        expect(user2Admins[0]).to.equal(user1.address);
+      });
+      
+      it("should update delegations correctly", async function () {
+        // Create a delegation
+        await delegationManager.connect(user1).createDelegation(
+          user2.address,
+          ethers.parseEther("100"),
+          7 * 24 * 60 * 60
+        );
+        
+        // Update delegation
+        const newSpendLimit = ethers.parseEther("200");
+        const newExpiryDuration = 14 * 24 * 60 * 60; // 14 days
+        
+        await delegationManager.connect(user1).updateDelegation(
+          user2.address,
+          newSpendLimit,
+          newExpiryDuration
+        );
+        
+        // Check updated delegation
+        const delegation = await delegationManager.getDelegation(user1.address, user2.address);
+        expect(delegation.spendLimit).to.equal(newSpendLimit);
+      });
+      
+      it("should revoke delegations", async function () {
+        // Create a delegation
+        await delegationManager.connect(user1).createDelegation(
+          user2.address,
+          ethers.parseEther("100"),
+          7 * 24 * 60 * 60
+        );
+        
+        // Revoke delegation
+        await delegationManager.connect(user1).revokeDelegation(user2.address);
+        
+        // Check delegation status
+        const delegation = await delegationManager.getDelegation(user1.address, user2.address);
+        expect(delegation.isActive).to.equal(false);
+        
+        const isActive = await delegationManager.isDelegationActive(user1.address, user2.address);
+        expect(isActive).to.equal(false);
+      });
+    });
+    
+    describe("MetaFluxToken", function () {
+      it("should initialize correctly", async function () {
+        const name = await metaFluxToken.name();
+        const symbol = await metaFluxToken.symbol();
+        const decimals = await metaFluxToken.decimals();
+        
+        expect(name).to.equal("MetaFlux Token");
+        expect(symbol).to.equal("MFT");
+        expect(decimals).to.equal(18);
+      });
+      
+      it("should allow minting by authorized addresses", async function () {
+        const mintAmount = ethers.parseEther("1000");
+        await metaFluxToken.mint(user1.address, mintAmount);
+        
+        const balance = await metaFluxToken.balanceOf(user1.address);
+        expect(balance).to.equal(mintAmount);
+      });
+      
+      it("should prevent unauthorized minting", async function () {
+        const mintAmount = ethers.parseEther("1000");
+        await expect(metaFluxToken.connect(user1).mint(user1.address, mintAmount))
+          .to.be.revertedWithCustomError(metaFluxToken, "AccessControlUnauthorizedAccount");
+      });
+    });
+    
+    describe("NFTBadges", function () {
+      it("should initialize with default badges", async function () {
+        // Check first badge
+        const firstBadge = await nftBadges.getBadgeMetadata(0);
+        expect(firstBadge.name).to.equal("First Steps");
+        expect(firstBadge.rarity).to.equal(1);
+        expect(firstBadge.isActive).to.equal(true);
+      });
+      
+      it("should mint badges correctly", async function () {
+        // Mint a badge to user1
+        await nftBadges.connect(owner).mintBadge(user1.address, 0);
+        
+        // Check user has badge
+        const hasBadge = await nftBadges.hasBadge(user1.address, 0);
+        expect(hasBadge).to.equal(true);
+        
+        // Check badge mint count
+        const mintCount = await nftBadges.getBadgeMintCount(0);
+        expect(mintCount).to.equal(1);
+      });
