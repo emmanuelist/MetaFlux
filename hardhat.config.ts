@@ -20,7 +20,7 @@ const config = {
 		noColors: true,
 		currency: "USD",
 		coinmarketcap: vars.get("COINMARKETCAP_API_KEY"),
-		token: "PHAR",
+		token: "PTT",
 		excludeContracts: ["mocks/"]
 	},
 	solidity: {
@@ -44,7 +44,7 @@ const config = {
 			chainId: 31337,
 			timeout: 60000,
 		},
-		"pharos-testnet": {
+		"pharos": {
 			url: "https://devnet.dplabs-internal.com",
 			accounts: [ACCOUNT_PRIVATE_KEY],
 			chainId: 50002,
@@ -57,7 +57,7 @@ const config = {
 		customChains: [
 			{
 				chainId: 50002,
-				network: "pharos-testnet",
+				network: "pharos",
 				urls: {
 					apiURL: "",
 					browserURL: "https://pharosscan.xyz",

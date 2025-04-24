@@ -13,6 +13,12 @@ MetaFlux creates a complete financial management ecosystem with several integrat
 - **MetaFluxToken (MFT)**: ERC-20 token for rewards and potential governance
 - **NFTBadges**: ERC-721 tokens representing achievements
 
+## Deployment Information
+
+**Deployment Account**: `0x96372f0536251C670A1b93ac534CD860fB9042A3`
+
+All MetaFlux contracts are deployed from this account address on the Pharos blockchain.
+
 ## Architecture
 
 MetaFlux follows a modular design with separate contracts for distinct functionality that interact through well-defined interfaces:
