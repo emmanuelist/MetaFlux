@@ -258,7 +258,7 @@ const SecuritySettingsSection = () => {
                   className="h-4 w-4 text-orange-500 focus:ring-orange-500 border-gray-600 bg-gray-700"
                 />
                 <span className="ml-2 block text-sm text-gray-300">
-                  Only for high-value transactions (>$100)
+                  Only for high-value transactions (greater than $100)
                 </span>
               </label>
             </div>
