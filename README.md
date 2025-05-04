@@ -17,7 +17,16 @@ MetaFlux creates a complete financial management ecosystem with several integrat
 
 **Deployment Account**: `0x96372f0536251C670A1b93ac534CD860fB9042A3`
 
-All MetaFlux contracts are deployed from this account address on the Pharos blockchain.
+All MetaFlux contracts are deployed on the Pharos blockchain with the following addresses:
+
+| Contract | Address |
+|----------|---------|
+| ExpenseTracker | `0xD518025195ce64Cf8B1a47cb6cca41F120845aa4` |
+| BudgetManager | `0x022bFcAdd2eE069Cb6C5d3b558271fbeFFeB4ed1` |
+| DelegationManager | `0x236E338E25ec6c340F038d4a6D35Ff363FCdB0CF` |
+| MetaFluxToken | `0xC064fcC0bcEC23Fd23BeA8AAfdA123b51822519f` |
+| NFTBadges | `0x1B3f8483BeE03BceF6bD9618E951F21C3Beb14fD` |
+| RewardsDistributor | `0x7D06082577EAe04588876D426e82c7e83e14A33a` |
 
 ## Architecture
 
@@ -159,20 +168,20 @@ ERC-721 tokens representing achievements and milestones:
 
 ### Installation
 
-1. Clone the repository:
+Clone the repository:
 
 ```bash
 git clone https://github.com/yourusername/metaflux.git
 cd metaflux
 ```
 
-2. Install dependencies:
+Install dependencies:
 
 ```bash
 npm install
 ```
 
-3. Set up environment variables:
+ Set up environment variables:
 
 ```bash
 npx hardhat vars set ACCOUNT_PRIVATE_KEY
@@ -184,7 +193,33 @@ npx hardhat vars set ACCOUNT_PRIVATE_KEY
 Compile the smart contracts:
 
 ```bash
+
 npx hardhat compile
+```
+
+### Deployment
+
+Deploy the contracts to the Pharos blockchain:
+
+```bash
+
+npx hardhat run scripts/deploy.ts --network pharos
+```
+
+Example deployment output:
+```
+Deploying contracts with the account: 0x96372f0536251C670A1b93ac534CD860fB9042A3
+ExpenseTracker deployed to: 0xD518025195ce64Cf8B1a47cb6cca41F120845aa4
+BudgetManager deployed to: 0x022bFcAdd2eE069Cb6C5d3b558271fbeFFeB4ed1
+DelegationManager deployed to: 0x236E338E25ec6c340F038d4a6D35Ff363FCdB0CF
+MetaFluxToken deployed to: 0xC064fcC0bcEC23Fd23BeA8AAfdA123b51822519f
+NFTBadges deployed to: 0x1B3f8483BeE03BceF6bD9618E951F21C3Beb14fD
+RewardsDistributor deployed to: 0x7D06082577EAe04588876D426e82c7e83e14A33a
+Setting up permissions...
+Granted MINTER_ROLE to RewardsDistributor in MetaFluxToken
+Granted MINTER_ROLE to RewardsDistributor in NFTBadges
+Granted EXPENSE_RECORDER_ROLE to ExpenseTracker in DelegationManager
+Deployment complete!
 ```
 
 ### Testing
@@ -280,3 +315,11 @@ The test suite includes helper utilities for common test operations:
 - Reentrancy protection for financial operations
 - Comprehensive validation checks
 - Extensive test coverage of all functionality
+
+## Contract Permissions
+
+The following permissions have been set up during deployment:
+
+- RewardsDistributor has been granted MINTER_ROLE in MetaFluxToken
+- RewardsDistributor has been granted MINTER_ROLE in NFTBadges
+- ExpenseTracker has been granted EXPENSE_RECORDER_ROLE in DelegationManager
