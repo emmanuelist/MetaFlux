@@ -11,7 +11,7 @@ import { WalletProvider } from './components/providers/wallet-provider';
 // import Budgeting from './pages/Budgeting';
 // import Delegation from './pages/Delegation';
 // import Rewards from './pages/Rewards';
-// import Settings from './pages/Settings';
+import Settings from './pages/Settings';
 
 function App() {
   return (
@@ -25,8 +25,8 @@ function App() {
          <Route path="/transactions" element={<Transactions />} />
          {/* <Route path="/budgeting" element={<Budgeting />} />
         <Route path="/delegation" element={<Delegation />} />
-        <Route path="/rewards" element={<Rewards />} />
-        <Route path="/settings" element={<Settings />} />   */}
+        <Route path="/rewards" element={<Rewards />} />  */}
+        <Route path="/settings" element={<Settings />} />   
       </Routes>
     </Router>
     </WalletProvider>
